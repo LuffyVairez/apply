@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Applied | Job application tracker</title>
+  <meta name="description" content="Track job applications, deadlines and documents in one place. Your data stays in your browser.">
+<link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header>
+    <h1>Applied</h1>
+    <p>Keep every job application, deadline and document in one place.</p>
+  </header>
+
+  <main id="main">
+    <section aria-labelledby="overview-title">
+      <h2 id="overview-title">Overview</h2>
+      <dl class="stats">
+        <div><dt>Total</dt><dd id="stat-total">0</dd></div>
+        <div><dt>Open</dt><dd id="stat-open">0</dd></div>
+        <div><dt>Interviews</dt><dd id="stat-interview">0</dd></div>
+        <div><dt>Closing in 7 days</dt><dd id="stat-soon">0</dd></div>
+      </dl>
+    </section>
+
+    <section aria-labelledby="add-title">
+      <h2 id="add-title">Add an application</h2>
+
+      <form id="app-form">
+        <p>Fields marked <span aria-hidden="true">*</span><span class="sr"> with an asterisk</span> are required.</p>
+
+        <div class="field">
+          <label for="role">Job title <span aria-hidden="true">*</span></label>
+          <input id="role" name="role" type="text" maxlength="100" required>
+        </div>
+
+        <div class="field">
+          <label for="employer">Employer <span aria-hidden="true">*</span></label>
+          <input id="employer" name="employer" type="text" maxlength="100" required>
+        </div>
+
+        <div class="field">
+          <label for="deadline">Application deadline</label>
+          <input id="deadline" name="deadline" type="date">
+        </div>
+
+        <div class="field">
+          <label for="status">Status</label>
+          <select id="status" name="status">
+            <option value="wishlist">Wishlist</option>
+            <option value="preparing">Preparing</option>
+            <option value="applied">Applied</option>
+            <option value="interview">Interview</option>
+            <option value="offer">Offer</option>
+            <option value="rejected">Rejected</option>
+            <option value="withdrawn">Withdrawn</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="link">Job posting link</label>
+          <input id="link" name="link" type="url" placeholder="https://" autocomplete="off">
+        </div>
+
+        <fieldset>
+          <legend>Documents ready</legend>
+          <label><input type="checkbox" name="docs" value="cover-letter"> Cover letter</label>
+          <label><input type="checkbox" name="docs" value="cv"> CV or resume</label>
+          <label><input type="checkbox" name="docs" value="transcripts"> Degree and transcripts</label>
+          <label><input type="checkbox" name="docs" value="references"> References</label>
+          <label><input type="checkbox" name="docs" value="police-record"> Police record</label>
+        </fieldset>
+
+        <div class="field">
+          <label for="notes">Notes</label>
+          <textarea id="notes" name="notes" rows="3" maxlength="500"></textarea>
+        </div>
+
+        <button type="submit">Save application</button>
+        <p id="form-status" role="status"></p>
+      </form>
+    </section>
+
+    <section aria-labelledby="list-title">
+      <h2 id="list-title">Your applications</h2>
+
+   <div class="toolbar">
+  <label for="filter">Show</label>
+  <select id="filter">
+    <option value="all">All statuses</option>
+    <option value="wishlist">Wishlist</option>
+    <option value="preparing">Preparing</option>
+    <option value="applied">Applied</option>
+    <option value="interview">Interview</option>
+    <option value="offer">Offer</option>
+    <option value="rejected">Rejected</option>
+    <option value="withdrawn">Withdrawn</option>
+  </select>
+
+  <button type="button" id="delete-mode-btn">Delete</button>
+
+  <div id="delete-controls" hidden>
+    <button type="button" id="delete-selected">Delete selected</button>
+    <button type="button" id="delete-all">Delete all</button>
+    <button type="button" id="cancel-delete">Cancel</button>
+  </div>
+</div>
+
+     <p id="empty" hidden>No applications yet. Add your first one above.</p>
+
+<div class="table-wrap" role="region" aria-labelledby="list-title" tabindex="0">
+  <table>
+    <caption>Job applications</caption>
+          <thead>
+            <tr>
+              <th scope="col">Job</th>
+              <th scope="col">Employer</th>
+              <th scope="col">Deadline</th>
+              <th scope="col">Status</th>
+              <th scope="col">Documents</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="app-rows"></tbody>
+          <!-- <tbody id="app-rows">
+            
+            <tr>
+              <th scope="row">Sample job</th>
+              <td>Sample employer</td>
+              <td><time datetime="2026-12-01">1 Dec 2026</time></td>
+              <td>Preparing</td>
+              <td>2 of 5</td>
+              <td>
+                <button type="button" aria-label="Edit Sample job at Sample employer">Edit</button>
+                <button type="button" aria-label="Delete Sample job at Sample employer">Delete</button>
+              </td> -->
+            <!-- </tr>
+          </tbody> -->
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Your applications are stored only in this browser. Nothing is uploaded.</p>
+  </footer>
+  <script src="app.js"></script>
+</body>
+</html>
