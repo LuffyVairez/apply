@@ -1,321 +1,197 @@
-const STORAGE_KEY = "applied-data-v1";
+// Session and Data State Variables
+let currentUser = sessionStorage.getItem('currentUser') || null;
+let applications = [];
 
-const STATUS_LABELS = {
-  wishlist: "Wishlist",
-  preparing: "Preparing",
-  applied: "Applied",
-  interview: "Interview",
-  offer: "Offer",
-  rejected: "Rejected",
-  withdrawn: "Withdrawn"
-};
-const CLOSED_STATUSES = ["rejected", "withdrawn"];
-const NOT_SENT_STATUSES = ["wishlist", "preparing"];
-document.addEventListener("DOMContentLoaded", function () {
-  
-  const form = document.getElementById("app-form");
-  const statusEl = document.getElementById("form-status");
-  const rowsEl = document.getElementById("app-rows");
-  const emptyEl = document.getElementById("empty");
-  const tableWrap = document.querySelector(".table-wrap");
-  const totalDocs = form.querySelectorAll('input[name="docs"]').length;
+// DOM Elements
+const authScreen = document.getElementById('auth-screen');
+const appContent = document.getElementById('app-content');
+const usernameInput = document.getElementById('username-input');
+const loginBtn = document.getElementById('login-btn');
+const logoutBtn = document.getElementById('logout-btn');
+const currentUserDisplay = document.getElementById('current-user-display');
 
-function isValidApp(app) {
-  return (
-    typeof app === "object" &&
-    app !== null &&
-    typeof app.id === "string" &&
-    typeof app.role === "string" &&
-    typeof app.employer === "string" &&
-    Object.keys(STATUS_LABELS).includes(app.status) &&
-    Array.isArray(app.docs)
-  );
+const appForm = document.getElementById('app-form');
+const saveBtn = document.getElementById('save-btn');
+const deleteBtn = document.getElementById('delete-btn');
+const filterSelect = document.getElementById('filter');
+const container = document.getElementById('applications-container');
+
+// Stats Elements
+const statTotal = document.getElementById('stat-total');
+const statOpen = document.getElementById('stat-open');
+const statInterview = document.getElementById('stat-interview');
+const statClosing = document.getElementById('stat-closing');
+
+// Check Session on Initial Load
+if (currentUser) {
+    loadUserWorkspace(currentUser);
 }
 
-function load() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    return Array.isArray(parsed) ? parsed.filter(isValidApp) : [];
-  } catch (error) {
-    return [];
-  }
+// User Authentication Events
+loginBtn.addEventListener('click', () => {
+    const username = usernameInput.value.trim().toLowerCase();
+    if (!username) {
+        alert('Please enter a username to log in.');
+        return;
+    }
+    sessionStorage.setItem('currentUser', username);
+    currentUser = username;
+    loadUserWorkspace(username);
+});
+
+logoutBtn.addEventListener('click', () => {
+    sessionStorage.removeItem('currentUser');
+    currentUser = null;
+    applications = [];
+    authScreen.style.display = 'block';
+    appContent.style.display = 'none';
+    usernameInput.value = '';
+});
+
+function loadUserWorkspace(username) {
+    currentUserDisplay.textContent = username;
+    authScreen.style.display = 'none';
+    appContent.style.display = 'block';
+    
+    // Load local data specific only to this username
+    applications = JSON.parse(localStorage.getItem(`apps_${username}`)) || [];
+    renderApplications();
 }
 
-function save() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(apps));
-  } catch (error) {
-    console.error(error);
-    say("Could not save. Your browser may be blocking storage.", true);
-  }
-}
+// Filter Options Event
+filterSelect.addEventListener('change', () => {
+    renderApplications();
+});
 
-let apps = load();
-function say(text, isError) {
-  statusEl.textContent = text;
-  statusEl.className = isError ? "error" : "";
-}
+// Save Application Functionality
+saveBtn.addEventListener('click', () => {
+    const jobTitle = document.getElementById('job-title').value.trim();
+    const employer = document.getElementById('employer').value.trim();
+    const deadline = document.getElementById('deadline').value;
+    const status = document.getElementById('status').value;
+    const jobLink = document.getElementById('job-link').value.trim();
+    const notes = document.getElementById('notes').value.trim();
 
-function makeId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-}
+    if (!jobTitle || !employer) {
+        alert('Job title and Employer fields are required.');
+        return;
+    }
 
-function parseDate(value) {
-  const parts = value.split("-").map(Number);
-  return new Date(parts[0], parts[1] - 1, parts[2]);
-}
-
-function formatDate(value) {
-  return parseDate(value).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric"
-  });
-}
-
-function daysUntil(value) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return Math.round((parseDate(value) - today) / 86400000);
-}
-
-function safeLink(text) {
-  if (!text) {
-    return "";
-  }
-  try {
-    const url = new URL(text);
-    return url.protocol === "http:" || url.protocol === "https:" ? url.href : "";
-  } catch (error) {
-    return "";
-  }
-}
-
-function isClosingSoon(app) {
-  if (!app.deadline || !NOT_SENT_STATUSES.includes(app.status)) {
-    return false;
-  }
-  const days = daysUntil(app.deadline);
-  return days >= 0 && days <= 7;
-}
-
-function makeCell(text) {
-  const td = document.createElement("td");
-  td.textContent = text;
-  return td;
-}
-
-function buildRow(app) {
-  const tr = document.createElement("tr");
-
-  if (deleteMode) {
-    const checkTd = document.createElement("td");
-    const cb = document.createElement("input");
-    cb.type = "checkbox";
-    cb.value = app.id;
-    cb.setAttribute("aria-label", "Select " + app.role + " at " + app.employer);
-    checkTd.append(cb);
-    tr.append(checkTd);
-  }
-
-  const th = document.createElement("th");
-  th.scope = "row";
-  const href = safeLink(app.link);
-  if (href) {
-    const a = document.createElement("a");
-    a.href = href;
-    a.textContent = app.role;
-    th.append(a);
-  } else {
-    th.textContent = app.role;
-  }
-
-  const deadlineCell = document.createElement("td");
-  if (app.deadline) {
-    const time = document.createElement("time");
-    time.dateTime = app.deadline;
-    time.textContent = formatDate(app.deadline);
-    deadlineCell.append(time);
-  } else {
-    deadlineCell.textContent = "No deadline";
-  }
-
-  const actions = document.createElement("td");
-  const del = document.createElement("button");
-  del.type = "button";
-  del.textContent = "Delete";
-  del.dataset.id = app.id;
-  del.setAttribute("aria-label", "Delete " + app.role + " at " + app.employer);
-  actions.append(del);
-
-  tr.append(
-    th,
-    makeCell(app.employer),
-    deadlineCell,
-    makeCell(STATUS_LABELS[app.status]),
-    makeCell(app.docs.length + " of " + totalDocs),
-    actions
-  );
-  return tr;
-}
-
-function updateStats() {
-  const open = apps.filter(function (app) {
-    return !CLOSED_STATUSES.includes(app.status);
-  });
-  document.getElementById("stat-total").textContent = apps.length;
-  document.getElementById("stat-open").textContent = open.length;
-  document.getElementById("stat-interview").textContent = apps.filter(function (app) {
-    return app.status === "interview";
-  }).length;
-  document.getElementById("stat-soon").textContent = apps.filter(isClosingSoon).length;
-}
-
-function render() {
-  const theadRow = document.querySelector("thead tr");
-  theadRow.innerHTML = "";
-  if (deleteMode) {
-    theadRow.innerHTML += "<th scope='col'><span class='sr'>Select</span></th>";
-  }
-  theadRow.innerHTML += `
-    <th scope="col">Job</th>
-    <th scope="col">Employer</th>
-    <th scope="col">Deadline</th>
-    <th scope="col">Status</th>
-    <th scope="col">Documents</th>
-    <th scope="col">Actions</th>
-  `;
-
-  rowsEl.replaceChildren();
-const filter = document.getElementById("filter").value;
-const visible = filter === "all"
-  ? apps
-  : apps.filter(function (app) {
-      return app.status === filter;
+    // Capture documents checked
+    const checkedDocs = [];
+    document.querySelectorAll('.doc-checkbox:checked').forEach(cb => {
+        checkedDocs.push(cb.value);
     });
 
-visible.forEach(function (app) {
-  rowsEl.append(buildRow(app));
+    const newApp = {
+        id: Date.now(),
+        jobTitle,
+        employer,
+        deadline,
+        status,
+        jobLink,
+        documents: checkedDocs,
+        notes
+    };
+
+    applications.push(newApp);
+    saveDataToLocalStorage();
+    renderApplications();
+    
+    // Reset Form Fields
+    appForm.reset();
 });
 
-  emptyEl.hidden = visible.length > 0;
-tableWrap.hidden = visible.length === 0;
-  updateStats();
+// Clear Data Functionality
+deleteBtn.addEventListener('click', () => {
+    if (confirm('Are you sure you want to delete all your application data?')) {
+        applications = [];
+        saveDataToLocalStorage();
+        renderApplications();
+    }
+});
+
+function saveDataToLocalStorage() {
+    if (currentUser) {
+        localStorage.setItem(`apps_${currentUser}`, JSON.stringify(applications));
+    }
 }
-document.getElementById("filter").addEventListener("change", function () {
-  render();
-});
-let deleteMode = false;
 
-function setDeleteMode(on) {
-  deleteMode = on;
-  document.getElementById("delete-mode-btn").hidden = on;
-  document.getElementById("delete-controls").hidden = !on;
-  render();
+function renderApplications() {
+    const activeFilter = filterSelect.value;
+    container.innerHTML = '';
+
+    // Filter Logic
+    const filteredApps = applications.filter(app => {
+        if (activeFilter === 'all') return true;
+        return app.status === activeFilter;
+    });
+
+    // Update Top Overview Dashboard Figures
+    updateDashboardStats();
+
+    if (filteredApps.length === 0) {
+        container.innerHTML = '<p class="no-apps">No matches found for this status view.</p>';
+        return;
+    }
+
+    // Build Cards Layout
+    filteredApps.forEach(app => {
+        const card = document.createElement('div');
+        card.className = 'application-card';
+        
+        let docsHtml = app.documents.length > 0 
+            ? app.documents.map(d => `<span class="tag tag-doc">${d}</span>`).join(' ')
+            : '<span class="tag tag-none">No documents listed</span>';
+
+        card.innerHTML = `
+            <div class="card-main">
+                <div class="card-meta">
+                    <h3>${app.jobTitle}</h3>
+                    <p class="company">${app.employer}</p>
+                </div>
+                <div class="card-status-pill ${app.status.toLowerCase()}">${app.status}</div>
+            </div>
+            <div class="card-details">
+                <p><strong>Deadline:</strong> ${app.deadline ? app.deadline : 'None set'}</p>
+                ${app.jobLink ? `<p><strong>Link:</strong> <a href="${app.jobLink}" target="_blank">View Posting</a></p>` : ''}
+                <p class="doc-section"><strong>Materials:</strong> ${docsHtml}</p>
+                ${app.notes ? `<p class="notes-block"><strong>Notes:</strong> ${app.notes}</p>` : ''}
+            </div>
+            <button class="delete-single-btn" onclick="deleteSingleApplication(${app.id})">Remove</button>
+        `;
+        container.appendChild(card);
+    });
 }
 
-document.getElementById("delete-mode-btn").addEventListener("click", function () {
-  setDeleteMode(true);
-});
+function deleteSingleApplication(id) {
+    applications = applications.filter(app => app.id !== id);
+    saveDataToLocalStorage();
+    renderApplications();
+}
 
-document.getElementById("cancel-delete").addEventListener("click", function () {
-  setDeleteMode(false);
-});
+function updateDashboardStats() {
+    statTotal.textContent = applications.length;
+    
+    const openApps = applications.filter(app => app.status !== 'Rejected' && app.status !== 'Offer');
+    statOpen.textContent = openApps.length;
 
-document.getElementById("delete-all").addEventListener("click", function () {
-  if (apps.length === 0) {
-    say("Nothing to delete.");
-    return;
-  }
-  if (!confirm("Delete all " + apps.length + " applications?")) return;
-  apps = [];
-  save();
-  setDeleteMode(false);
-  say("All applications deleted.");
-});
+    const interviewApps = applications.filter(app => app.status === 'Interview');
+    statInterview.textContent = interviewApps.length;
 
-document.getElementById("delete-selected").addEventListener("click", function () {
-  const boxes = document.querySelectorAll("#app-rows input[type=checkbox]:checked");
-  if (boxes.length === 0) {
-    say("Select at least one application first.", true);
-    return;
-  }
-  if (!confirm("Delete " + boxes.length + " selected application(s)?")) return;
+    // Calculate deadlines upcoming inside next 7 days
+    let closingSoonCount = 0;
+    const today = new Date();
+    const targetLimit = new Date();
+    targetLimit.setDate(today.getDate() + 7);
 
-  const ids = Array.from(boxes).map(function (box) {
-    return box.value;
-  });
-  apps = apps.filter(function (app) {
-    return !ids.includes(app.id);
-  });
-  save();
-  setDeleteMode(false);
-  say("Deleted " + ids.length + " application(s).");
-});
-
-form.addEventListener("submit", function (event) {
-  event.preventDefault();
-  const data = new FormData(form);
-
-  const role = String(data.get("role")).trim();
-  const employer = String(data.get("employer")).trim();
-  const link = String(data.get("link")).trim();
-
-  if (!role || !employer) {
-    say("Please enter a job title and an employer.", true);
-    return;
-  }
-  if (link && !safeLink(link)) {
-    say("The job link must start with http:// or https://", true);
-    document.getElementById("link").focus();
-    return;
-  }
-
-  const status = String(data.get("status"));
-  apps.unshift({
-    id: makeId(),
-    role: role,
-    employer: employer,
-    deadline: String(data.get("deadline") || ""),
-    status: Object.keys(STATUS_LABELS).includes(status) ? status : "wishlist",
-    link: link,
-    docs: data.getAll("docs"),
-    notes: String(data.get("notes")).trim(),
-    created: Date.now()
-  });
-
-  save();
-  render();
-  form.reset();
-  say("Saved: " + role + " at " + employer + ".");
-  document.getElementById("role").focus();
-});
-
-rowsEl.addEventListener("click", function (event) {
-  const button = event.target.closest("button[data-id]");
-  if (!button) {
-    return;
-  }
-  const app = apps.find(function (item) {
-    return item.id === button.dataset.id;
-  });
-  if (!app) {
-    return;
-  }
-  if (!confirm("Delete " + app.role + " at " + app.employer + "?")) {
-    return;
-  }
-
-  apps = apps.filter(function (item) {
-    return item.id !== app.id;
-  });
-  save();
-  render();
-  say("Deleted: " + app.role + " at " + app.employer + ".");
-  (apps.length > 0 ? tableWrap : document.getElementById("role")).focus();
-});
-
-render();
-
-
-});   // ← add this line
+    applications.forEach(app => {
+        if (app.deadline) {
+            const appDate = new Date(app.deadline);
+            if (appDate >= today && appDate <= targetLimit && app.status !== 'Rejected') {
+                closingSoonCount++;
+            }
+        }
+    });
+    statClosing.textContent = closingSoonCount;
+}
